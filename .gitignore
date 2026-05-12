@@ -8,7 +8,7 @@ yarn-error.log*
 android-app/build/
 android-app/app/build/
 android-app/.gradle
-android-app/.gradle/8.8
+android-app/.gradle/8.8/
 android-app/local.properties
 android-app/*.apk
 android-app/*.aab
@@ -67,3 +67,4 @@ temp/
 .env.production.local
 android-app/.gradle/buildOutputCleanup/buildOutputCleanup.lock
 android-app/.gradle/8.8/executionHistory/executionHistory.bin
+android-app/.gradle/8.8/fileHashes/fileHashes.bin

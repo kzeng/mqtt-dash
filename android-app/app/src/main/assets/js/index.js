@@ -36,6 +36,7 @@ InstData_map.set('wifi_quality', 0);
 
 
 var isConnected = false;
+var uiNeedsUpdate = false; // 标记是否需要更新UI（降低更新频率）
 
 function MQTTconnect() {
     if (typeof path == "undefined") {
@@ -298,6 +299,80 @@ function updateChannelDisplays() {
     }
 }
 
+function updateUIDisplay() {
+    if (!uiNeedsUpdate) return;
+    uiNeedsUpdate = false;
+
+    // 更新温湿度显示
+    if(parseFloat(InstData_map.get('humi')) < 100)
+    {
+        $('#humi').html(InstData_map.get('humi'));
+    }
+
+    if(parseFloat(InstData_map.get('temp')) < 50)
+    {
+        $('#temp').html(InstData_map.get('temp'));
+    }
+
+    $('#stat').html(InstData_map.get('stat'));
+    $('#tt').html(InstData_map.get('tt'));
+    $('#td').html(InstData_map.get('td'));
+    $('#th').html(InstData_map.get('th'));
+    $('#hd').html(InstData_map.get('hd'));
+    $('#cm').html(InstData_map.get('cm'));
+    $('#cs').html(InstData_map.get('cs'));
+
+    // 更新空调状态
+    if(InstData_map.get('ac') == 1)
+    {
+        $('#accm_1').html("<i class='bi bi-record-fill green'></i>");
+        $('#accm_2').html("<i class='bi bi-record-fill red'></i>");
+        $('#accm_3').html("<i class='bi bi-record-fill red'></i>");
+        $('#accm_4').html("<i class='bi bi-record-fill red'></i>");
+    }
+    else
+    {
+        $('#accm_1').html("<i class='bi bi-record-fill red'></i>");
+        $('#accm_2').html("<i class='bi bi-record-fill red'></i>");
+        $('#accm_3').html("<i class='bi bi-record-fill red'></i>");
+        $('#accm_4').html("<i class='bi bi-record-fill red'></i>");
+    }
+
+    // 更新WiFi信号强度
+    let wifi_quality = InstData_map.get('wifi_quality');
+    if(wifi_quality > 100)
+    {
+        $('#status').html('<i class="bi bi-reception-4" style="color:white"></i> ' + '100%');
+    }
+    else if(wifi_quality > 90)
+    {
+        $('#status').html('<i class="bi bi-reception-4" style="color:white"></i> '+ wifi_quality +'%');
+    }
+    else if(wifi_quality > 70)
+    {
+        $('#status').html('<i class="bi bi-reception-3" style="color:white"></i> '+ wifi_quality +'%');
+    }
+    else if(wifi_quality > 50)
+    {
+        $('#status').html('<i class="bi bi-reception-2" style="color:white"></i> '+ wifi_quality +'%');
+    }
+    else if(wifi_quality > 30)
+    {
+        $('#status').html('<i class="bi bi-reception-1" style="color:white"></i> '+ wifi_quality +'%');
+    }
+    else
+    {
+        $('#status').html('<i class="bi bi-reception-0" style="color:white"></i>');
+    }
+
+    // 更新通道显示
+    updateChannelDisplays();
+
+    // 更新图表
+    drawChart_temp(tempData);
+    drawChart_humi(humiData);
+}
+
 
 function parseDevStateData(data) {
     // data = "55 03 CF XX AA";
@@ -327,118 +402,27 @@ function onMessageArrived(message) {
     {
         case 'dev/'+xds_inst_id+'/info':
             console.log('topic: dev/'+xds_inst_id+'/info');
-            // $('#info').html(payload);
             parseDevInfoData(payload);
 
-            if(parseFloat(InstData_map.get('humi')) < 100)
-            {
-                $('#humi').html(InstData_map.get('humi'));
+            // 更新图表数据
+            tempData.push({
+                "timestamp": InstData_map.get('time'),
+                "temperature": parseFloat(InstData_map.get('temp'))
+            });
+            if (tempData.length >= 10) {
+                tempData.shift()
             }
 
-            if(parseFloat(InstData_map.get('temp')) < 50)
-            {
-                $('#temp').html(InstData_map.get('temp'));
+            humiData.push({
+                "timestamp": InstData_map.get('time'),
+                "humi": parseFloat(InstData_map.get('humi'))
+            });
+            if (humiData.length >= 10) {
+                humiData.shift()
             }
 
-            $('#stat').html(InstData_map.get('stat') );
-
-            $('#tt').html(InstData_map.get('tt'));
-            $('#td').html(InstData_map.get('td'));
-
-            $('#th').html(InstData_map.get('th'));
-            $('#hd').html(InstData_map.get('hd'));
-
-            $('#cm').html(InstData_map.get('cm'));
-            // $('#ts').html(InstData_map.get('ts'));
-            $('#cs').html(InstData_map.get('cs'));
-            // $('#ac').html(InstData_map.get('ac'));
-
-            // console.log("ac:" + InstData_map.get('ac'));
-            if(InstData_map.get('ac') == 1)
-            {
-                $('#accm_1').html("<i class='bi bi-record-fill green'></i>");
-                $('#accm_2').html("<i class='bi bi-record-fill red'></i>");
-                $('#accm_3').html("<i class='bi bi-record-fill red'></i>");
-                $('#accm_4').html("<i class='bi bi-record-fill red'></i>");
-            }
-            else
-            {
-                $('#accm_1').html("<i class='bi bi-record-fill red'></i>");
-                $('#accm_2').html("<i class='bi bi-record-fill red'></i>");
-                $('#accm_3').html("<i class='bi bi-record-fill red'></i>");
-                $('#accm_4').html("<i class='bi bi-record-fill red'></i>");
-            }
-
-            wifi_quality = InstData_map.get('wifi_quality');
-            if(wifi_quality > 100)
-            {
-                $('#status').html('<i class="bi bi-reception-4" style="color:white"></i> ' + '100%');
-            }
-            else if(wifi_quality > 90)
-            {
-                $('#status').html('<i class="bi bi-reception-4" style="color:white"></i> '+ wifi_quality +'%');
-            }
-            else if(wifi_quality > 70)
-            {
-                $('#status').html('<i class="bi bi-reception-3" style="color:white"></i> '+ wifi_quality +'%');
-            }
-            else if(wifi_quality > 50)
-            {
-                $('#status').html('<i class="bi bi-reception-2" style="color:white"></i> '+ wifi_quality +'%');
-            }
-            else if(wifi_quality > 30)
-            {
-                $('#status').html('<i class="bi bi-reception-1" style="color:white"></i> '+ wifi_quality +'%');
-            }
-            else
-            {
-                $('#status').html('<i class="bi bi-reception-0" style="color:white"></i>');
-            }
-
-
-            // params -----------------------------------------
-            // $("#target_temp").val(InstData_map.get('tt'));
-            // $("#target_humi").val(InstData_map.get('th'));
-            // $("#ctl_temp").val(InstData_map.get('td'));
-            // $("#ctl_humi").val(InstData_map.get('hd'));
-        
-
-            // Update channel displays
-            updateChannelDisplays();
-
-            //-------------------------------------------------
-            // if(show_interval >= SHOW_INTERVAL_COUNT)
-            if(true)
-            {
-                show_interval = 0;
-
-                tempData.push({
-                    // "timestamp": Date().slice(16, 21),
-                    "timestamp": InstData_map.get('time'),
-                    // "temperature": parseInt(payload)
-                    "temperature": parseFloat(InstData_map.get('temp'))
-                });
-                if (tempData.length >= 10) {
-                    tempData.shift()
-                }
-                console.log(tempData);
-                drawChart_temp(tempData);
-
-                humiData.push({
-                    // "timestamp": Date().slice(16, 21),  // 16:21
-                    "timestamp": InstData_map.get('time'),
-                    // "humi": parseInt(payload)
-                    "humi": parseFloat(InstData_map.get('humi'))
-                });
-                if (humiData.length >= 10) {
-                    humiData.shift()
-                }
-                console.log(humiData);
-                drawChart_humi(humiData);
-            }
-
-            show_interval++;
-
+            // 设置标志位，触发定时器更新UI
+            uiNeedsUpdate = true;
             break;
 
         case 'dev/'+xds_inst_id+'/state':
@@ -657,7 +641,10 @@ $(document).ready(function () {
 
     drawChart_temp(tempData);
     drawChart_humi(humiData);
-    
+
+    // 每秒更新一次UI（降低更新频率，减少主线程占用）
+    setInterval(updateUIDisplay, 1000);
+
     // get devInstId, and fill to page
     if(localStorage.getItem('xds_inst_id'))
     {
