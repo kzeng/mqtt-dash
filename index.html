@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="A web interface for MQTT over Websockets">
+
+    <title>Home</title>
+
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+
+    <script src="js/jquery.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+
+    <script src="js/Chart.min.js"></script> 
+    <script src="js/common.js"></script> 
+
+    <!-- <script src="js/jsQR.js"></script>  -->
+    <link rel="stylesheet" href="css/bi171/bootstrap-icons.css">
+    <script type="text/javascript" src="js/mqttws31.js"></script>
+    <script type="text/javascript" src="js/index.js"></script>
+
+    <style>
+        .nav-link.active {
+            background-color: #ccc; /* 激活状态的背景颜色 */
+            color: white; /* 激活状态的文字颜色 */
+            border-radius: 20px;
+        }
+    .info1 {
+        /* margin-top: 0;
+        margin-bottom: .5rem; */
+        font-size: 24px;
+        font-weight: 500;
+        /* font-weight: 450;
+        line-height: 1.2; */
+    }
+
+    .info2 {
+        font-size: 12px;
+    }
+
+    .info3 {
+        font-size: 16px;
+        font-weight: 500;
+    }
+
+    .info4 {
+        font-size: 24px;
+        font-weight: 500;
+    }
+
+    .ac_green{
+        font-weight: 500;
+        color: #2ECC40;
+        font-size: 18px;
+    }
+
+    .ac_red{
+        font-weight: 500;
+        color: #dc3545;
+        font-size: 18px;
+    }           
+
+    .ac_gray{
+        font-weight: 500;
+        color: #6c757d;
+        font-size: 18px;
+    }
+    .circle-img {
+        border-radius: 30%;
+        width: 51px; /* adjust as needed */
+        height: 51px; /* adjust as needed */
+    }
+
+    .circle-img1 {
+    
+        width: 98px;
+        height: 98px; 
+    }
+
+    .hdata {
+    	color: #e1673e;	
+    	font-size: 14px;
+    	overflow: hidden;
+    	text-overflow: ellipsis;
+    	white-space: nowrap;
+    }
+
+    .card-body
+    {
+        margin-top: 5px;
+        margin-bottom: -8px;
+    }
+    
+    .red
+    {
+        color:  #e1673e;	
+        font-size: 16px;
+    }
+
+    .green
+    {
+        color: #2ECC40;
+        font-size: 16px;
+    }
+
+    .ac-title
+    {
+        padding-left: 15px;
+        font-size: 14px;
+    }
+
+    .fixed-bottom
+    {
+        margin-bottom: -10px;
+        margin-top: 5px;
+    }
+
+    .ac-bg
+    {
+        background: #eee;
+    }
+
+    /* .nav-title
+    {
+        font-size: 16px;
+    } */
+
+    </style>
+</head>
+
+
+<body>
+    <nav class="navbar  navbar-dark bg-dark mb-2" >
+        <a class="navbar-brand" href="#" style="margin-left: 15px;">
+         <img src="img/logo.png" alt="" class="circle-img"   data-bs-toggle="modal" data-bs-target="#aboutModal">
+        </a>
+        <a class="navbar-brand col-md-3 col-lg-2 mr-0 px-3">
+            温湿度控制记录仪客户端
+            <br>
+            <span id="status" style="font-size: 14px; color: #fff;"></span>&nbsp;
+            <span id="esp8266_mac" style="font-size: 14px; color: #aaa;"></span>       
+        </a>
+    </nav>
+    <div class="container-fluid">
+        <!-- 
+        <div id="status" class="alert">
+            <small>Loading...</small>
+        </div> 
+        -->
+
+        <div class="card mb-2 ac-bg">
+
+            <table>
+                <tr>
+                    <td class="ac-title">CH1</td>
+                    <td><span id="accm_1"><i class='bi bi-record-fill red'></i></span></td>
+                    <td class="ac-title">CH2</td>
+                    <td><span id="accm_2"><i class='bi bi-record-fill red'></i></span></td>
+                    <td class="ac-title">CH3</td>
+                    <td><span id="accm_3"><i class='bi bi-record-fill red'></i></span></td>
+                    <td class="ac-title">CH4</td>
+                    <td><span id="accm_4"><i class='bi bi-record-fill red'></i></span></td>
+                </tr>
+            </table>
+     
+        </div>
+
+
+        <div class="card mb-2">
+            <div class="row">
+                <div class="col-4 col-md-4">
+                    <div class="card-body">
+                        <div class="card-title">
+                            温度 ℃
+                        </div>
+                        <h1 id="temp">-</h1>
+                    </div>
+                </div>
+                <div class="col-4 col-md-4">
+                    <div class="card-body">
+                        <div class="card-title">
+                           湿度 %
+                        </div>
+                        <h1 id="humi">-</h1>
+                    </div>
+                </div>
+
+                <div class="col-4 col-md-4">
+                    <div class="card-body">
+                        <div class="card-title">
+                            仪表
+                        </div>
+                        <h1 id="stat" >-</h1>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="card mb-2">
+            <div class="row">
+                <div class="col-6 col-md-6">
+                    <div class="card-body">
+                        <div class="card-title">
+                            目标温度
+                        </div>
+                        <span class="info1" id="tt">-</span>
+                        <span>±</span>
+                        <span class="info2 badge rounded-pill bg-light text-dark" id="td">-</span>
+                    </div>
+                </div>
+                <div class="col-6 col-md-6">
+                    <div class="card-body">
+                        <div class="card-title">
+                           目标湿度
+                        </div>
+                        <span class="info1" id="th">-</span>
+                        <span>±</span>
+                        <span class="info2 badge rounded-pill bg-light text-dark" id="hd">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="card mb-2">
+            <div class="row">
+                <div class="col-6 col-md-6" style="padding-right:0px">
+                    <div class="card-body" style="padding-right:0px">
+                        <div class="card-title">
+                            控制状态
+                        </div>
+                        <span class="info3" id="cs">-</span>
+                    </div>
+                </div>
+
+                <div class="col-6 col-md-6">
+                    <div class="card-body" style="padding-right:0px">
+                        <div class="card-title">
+                            控制模式
+                        </div>
+                        <span class="info3" id="cm">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    <!-- 
+        <h1>topic</h1>
+        <div id="topic">topic</div>
+    
+        <hr>
+        <h1>message</h1>
+        <div id="message">no message recieved</div>
+    -->
+   
+        <canvas id="tempChart" width="300" height="120"></canvas>
+ 
+        <canvas id="humiChart" width="300" height="120"></canvas>
+     
+    </div>
+
+    <!-- 固定底部导航栏 -->
+    <div class="fixed-bottom navbar navbar-light bg-light px-0">
+        <div class="container-fluid px-0">
+            <div class="row w-100 mx-0">
+                <div class="col text-center px-0">
+                    <button type="button" class="btn btn-light w-100" data-bs-toggle="modal" data-bs-target="#viewChData">
+                        <i class="bi bi-dice-4-fill"></i><br>
+                        <span class="nav-title">通道</span>
+                    </button>
+                </div>
+
+                <div class="col text-center px-0">
+                    <button type="button" class="btn btn-light w-100" data-bs-toggle="modal" data-bs-target="#controlModal">
+                        <i class="bi bi-gear-fill"></i><br>
+                        <span class="nav-title">控制</span>
+                    </button>
+                </div>
+                <div class="col text-center px-0">
+                    <button type="button" class="btn btn-light w-100" data-bs-toggle="modal" data-bs-target="#connectModal">
+                        <i class="bi bi-signpost-2-fill"></i><br>
+                        <span class="nav-title">连接</span>
+                    </button>
+                </div>
+                <div class="col text-center px-0">
+                    <button type="button" class="btn btn-light w-100" data-bs-toggle="modal" data-bs-target="#debugModal">
+                        <i class="bi bi-bug-fill"></i><br>
+                        <span class="nav-title">调试</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+<div class="modal fade" id="aboutModal" tabindex="-1" aria-labelledby="aboutModal" aria-hidden="true">
+    <div class="modal-dialog ">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="aboutModalLabel">关于</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <center>
+                    <img src="img/logo.png" alt="" class="circle-img1">
+
+                    <br>
+                    <br>
+                    <h3>温湿度控制记录仪客户端
+                    <br>
+                    V3.0.0
+                    </h3>
+                    <br><br>
+                    <h5>
+                        武汉兴达森科技有限公司&copy;2026
+                    </h5>       
+                    <br> 
+                </center>
+        
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="controlModal" tabindex="-1" aria-labelledby="controlModalLabel" aria-hidden="true">
+    <div class="modal-dialog ">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="controlModalLabel">控制面板</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+                <!--
+                <div class="row" style="margin-left: 15px; margin-right: 15px;">
+                
+                <table>
+                    <tr>
+                        <td>
+                            <button id="devCtrl" class="btn btn-success"><i class="bi bi-arrow-left-right"></i> 运行/停止</button>
+                        </td>
+                        <td>
+                            <button id="devReboot" class="btn btn-danger"><i class="bi bi-arrow-repeat"></i> 重启仪表</button>
+                        </td>
+                    </tr>
+
+                </table>
+                </div>
+                -->
+  
+                <div class="row" style="margin-left: 15px; margin-right: 15px;">
+        
+                    <button id="devCtrl" class="btn btn-success btn-block"><i class="bi bi-arrow-left-right"></i> 运行/停止</button>
+        
+                </div>
+                <br>
+                <div class="row" style="margin-left: 15px; margin-right: 15px;">
+        
+                    <button id="devReboot" class="btn btn-danger btn-block"><i class="bi bi-arrow-repeat"></i> 重启仪表</button>
+        
+                </div>
+
+
+                <!--
+                <div class="row" style="margin-left: 15px; margin-right: 15px;">
+        
+                    <button id="devRebootESP8266" class="btn btn-danger btn-block"><i class="bi bi-arrow-repeat"></i> 重启ESP8266</button>
+        
+                </div>
+                -->
+                
+                <hr>
+            
+                <div class="row" style="margin-left: 15px; margin-right: 15px;">
+        
+                    <table class="table">
+                        <tr>
+                            <td>目标温度 (℃)</td>
+                            <td>
+                                <input type="number"  max="100" min="0" step="0.1" class="form-control" id="target_temp">
+                            </td>
+    
+                        </tr>
+                        <tr>
+                            <td>目标湿度 (%)</td>
+                            <td>
+                                <input type="number"  max="100" min="0" step="0.1" class="form-control" id="target_humi">
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>控温容差 (℃)</td>
+                            <td>
+                                <input type="number"  max="100" min="0" step="0.1" class="form-control" id="ctl_temp">
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>控湿容差 (%)</td>
+                            <td>
+                                <input type="number"  max="100" min="0" step="0.1" class="form-control" id="ctl_humi">
+                            </td>
+                        </tr>
+
+                        <tr class="d-none">
+                            <td>控温转化时间 (分) </td>
+                            <td>
+                                <input type="number"  max="100" min="0" step="1" class="form-control" id="ctl_temp_time">
+                            </td>
+                        </tr>
+                        <tr class="d-none">
+                            <td>控湿转化时间 (分)</td>
+                            <td>
+                                <input type="number"  max="100" min="0" step="1" class="form-control" id="ctl_humi_time">
+                            </td>
+                        </tr>
+
+                        <tr class="d-none">
+                            <td>加热时间 (分)</td>
+                            <td>
+                                <input type="number"  max="100" min="0" step="1" class="form-control" id="heat_time">
+                            </td>
+                        </tr>
+                        <tr class="d-none">
+                            <td>加湿时间 (分)</td>
+                            <td>
+                                <input type="number"  max="100" min="0" step="1" class="form-control" id="humi_time">
+                            </td>
+                        </tr>
+                        <tr class="d-none">
+                            <td>化霜时间 (分)</td>
+                            <td>
+                                <input type="number"  max="100" min="0" step="1" class="form-control" id="frost_time">
+                            </td>
+                        </tr>
+                        <tr class="d-none">
+                            <td>停止时间 (分)</td>
+                            <td>
+                                <input type="number"  max="100" min="0" step="1" class="form-control" id="stop_time">
+                            </td>
+                        </tr>
+                    </table>
+ 
+                </div>
+                <div class="row justify-content-center">
+                    <div class="col-6 text-center">
+                        <button id="getParams" class="btn btn-success w-100">
+                            获取参数
+                        </button>
+                    </div>
+                    <div class="col-6 text-center">
+                        <button id="setParams" class="btn btn-primary w-100">
+                            设置参数
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<div class="modal fade" id="connectModal" tabindex="-1" aria-labelledby="connectModalLabel" aria-hidden="true">
+    <div class="modal-dialog ">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="connectModalLabel">连接</h5>
+
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <div class="modal-body">
+
+                <table class="table">
+                    <tr>
+                        <td>仪表ID</td>
+                        <td>
+                            <input type="text"  class="form-control" id="devInstId">
+
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>用户名</td>
+                        <td>
+                            <input type="text"  class="form-control" id="devInstName">
+                        </td>
+                    </tr>
+
+                </table>
+                <button id="switchInstDev" class="btn btn-success btn-block">
+                    确定
+                </button>
+                &nbsp;&nbsp;&nbsp;&nbsp;
+                <button class="btn btn-primary" id="scan" onclick="openBarcode()">
+                   扫码录入 <i class="bi bi-qr-code-scan"></i>
+               </button>
+               <br><br>
+                <table class="table table-bordered border-primary" id="dev_id_name_list">
+                    <!-- <tr>
+                        <td>wuhan_lab</td>
+                        <td>11:22:33:44:55:66</td>
+                        <td>
+                            <button class="btn btn-danger btn-sm">delete</button>
+                            <button class="btn btn-success btn-sm">select</button>  
+                        </td>
+                    </tr> -->
+      
+                </table>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="viewChData" tabindex="-1" aria-labelledby="viewChDataLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewChDataLabel">通道数据</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <table class="table ">
+                        <tr>
+                            <th>
+                            通道
+                            </th>
+                            <th>
+                            温度 <small>℃</small>
+                            </th>
+                            <th>
+                            湿度 <small%</small>
+                            </th>
+                        </tr>
+
+                        <tr>
+                            <td>
+                                <h3>1</h3>
+                            </td>
+                            <td>
+                                <h3 id="ch1_temp">-</h3>
+                            </td>
+                            <td>
+                                <h3 id="ch1_humi">-</h3>
+                            </td>
+                        </tr>
+   
+                        <tr>
+                            <td>
+                                <h3>2</h3>
+                            </td>
+                            <td>
+                                <h3 id="ch2_temp">-</h3>
+                            </td>
+                            <td>
+                                <h3 id="ch2_humi">-</h3>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>
+                                <h3>3</h3>
+                            </td>
+                            <td>
+                                <h3 id="ch3_temp">-</h3>
+                            </td>
+                            <td>
+                                <h3 id="ch3_humi">-</h3>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td>
+                                <h3>4</h3>
+                            </td>
+                            <td>
+                                <h3 id="ch4_temp">-</h3>
+                            </td>
+                            <td>
+                                <h3 id="ch4_humi">-</h3>
+                            </td>
+                        </tr>
+                    </table>
+
+
+                    <!--
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                通道 1
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <h6>温度 <small>℃</small></h6>
+                                        <h3 id="ch1_temp">-</h3>
+                                       
+                                    </div>
+                                    <div class="col-6">
+                                        <h6>湿度<small>%</small></h6>
+                                        <h3 id="ch1_humi">-</h3>
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                通道 2
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <h6>温度 <small>℃</small></h6>
+                                        <h3 id="ch2_temp">-</h3>
+                                       
+                                    </div>
+                                    <div class="col-6">
+                                        <h6>湿度 <small>%</small></h6>
+                                        <h3 id="ch2_humi">-</h3>
+                                       
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                通道 3
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <h6>温度 <small>℃</small></h6>
+                                        <h3 id="ch3_temp">-</h3>
+                                       
+                                    </div>
+                                    <div class="col-6">
+                                        <h6>湿度<small>%</small></h6>
+                                        <h3 id="ch3_humi">-</h3>
+                                        
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-header bg-primary text-white">
+                                通道 4
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-6">
+                                        <h6>温度<small>℃</small></h6>
+                                        <h3 id="ch4_temp">-</h3>
+                                        
+                                    </div>
+                                    <div class="col-6">
+                                        <h6>湿度 <small>%</small></h6>
+                                        <h3 id="ch4_humi">-</h3>
+                                       
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="debugModal" tabindex="-1" aria-labelledby="debugModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="debugModalLabel">调试</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="mb-3">
+                        <label for="commandInput" class="form-label">指令</label>
+                        <input type="text" class="form-control" id="commandInput" placeholder="输入指令">
+                    </div>
+                    <div class="mb-3">
+                        <label for="responseTextarea" class="form-label">响应信息</label>
+                        <textarea class="form-control" id="responseTextarea" rows="6" placeholder="响应信息将显示在这里"></textarea>
+                    </div>
+                    <button type="button" class="btn btn-primary" id="sendCommandButton">发送指令</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
