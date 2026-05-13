@@ -3,6 +3,7 @@ package com.example.mqttdashboard;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.ImageDecoder;
@@ -23,6 +24,7 @@ import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.example.mqttdashboard.nativeui.NativeShellActivity;
 import com.google.zxing.BinaryBitmap;
 import com.google.zxing.MultiFormatReader;
 import com.google.zxing.NotFoundException;
@@ -39,6 +41,7 @@ public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<ScanOptions> scanLauncher;
     private ActivityResultLauncher<String> pickImageLauncher;
     private ActivityResultLauncher<String> cameraPermissionLauncher;
+    private ActivityResultLauncher<Intent> nativeDeviceEntryLauncher;
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -77,6 +80,19 @@ public class MainActivity extends AppCompatActivity {
             } else {
                 showToast("未授予相机权限，无法扫码");
             }
+        });
+
+        nativeDeviceEntryLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
+            if (result.getResultCode() != RESULT_OK || result.getData() == null) {
+                return;
+            }
+
+            Intent data = result.getData();
+            syncNativeDeviceDataToPage(
+                    data.getStringExtra(NativeShellActivity.EXTRA_SELECTED_DEVICE_ID),
+                    data.getStringExtra(NativeShellActivity.EXTRA_SELECTED_DEVICE_NAME),
+                    data.getStringExtra(NativeShellActivity.EXTRA_DEVICE_LIST_JSON)
+            );
         });
 
         webView.addJavascriptInterface(new AndroidScannerBridge(), "AndroidScanner");
@@ -195,10 +211,32 @@ public class MainActivity extends AppCompatActivity {
         runOnUiThread(() -> Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
     }
 
+    private void openNativeDeviceEntry() {
+        Intent intent = new Intent(this, NativeShellActivity.class);
+        intent.putExtra(NativeShellActivity.EXTRA_RETURN_RESULT, true);
+        nativeDeviceEntryLauncher.launch(intent);
+    }
+
+    private void syncNativeDeviceDataToPage(String deviceId, String deviceName, String deviceListJson) {
+        String escapedDeviceId = org.json.JSONObject.quote(deviceId == null ? "" : deviceId);
+        String escapedDeviceName = org.json.JSONObject.quote(deviceName == null ? "" : deviceName);
+        String escapedDeviceListJson = org.json.JSONObject.quote(deviceListJson == null ? "[]" : deviceListJson);
+
+        runOnUiThread(() -> webView.evaluateJavascript(
+                "if (typeof applyNativeDeviceData === 'function') { applyNativeDeviceData(" + escapedDeviceId + ", " + escapedDeviceName + ", " + escapedDeviceListJson + "); }",
+                null
+        ));
+    }
+
     private final class AndroidScannerBridge {
         @JavascriptInterface
         public void showScanOptions() {
             runOnUiThread(MainActivity.this::showScanOptionsDialog);
+        }
+
+        @JavascriptInterface
+        public void openNativeDeviceEntry() {
+            runOnUiThread(MainActivity.this::openNativeDeviceEntry);
         }
     }
 

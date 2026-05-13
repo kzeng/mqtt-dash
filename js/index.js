@@ -661,6 +661,34 @@ function openBarcode(){
 
 //QR JS END
 
+function openNativeDeviceEntry() {
+    if (window.AndroidScanner && typeof window.AndroidScanner.openNativeDeviceEntry === 'function') {
+        window.AndroidScanner.openNativeDeviceEntry();
+        return;
+    }
+
+    alert('当前环境不支持原生设备录入');
+}
+
+function applyNativeDeviceData(deviceId, deviceName, deviceListJson) {
+    localStorage.setItem('xds_inst_id', deviceId || '');
+    localStorage.setItem('xds_inst_name', deviceName || '');
+    localStorage.setItem('device_list', deviceListJson || '[]');
+
+    $('#devInstId').val(deviceId || '');
+    $('#devInstName').val(deviceName || '');
+
+    if (deviceId) {
+        $('#esp8266_mac').html(deviceId.split(':').slice(3).join('') + ' | ' + (deviceName || ''));
+    }
+
+    if (typeof loadDeviceList === 'function') {
+        loadDeviceList();
+    }
+
+    $('#connectModal').modal('hide');
+}
+
 
 $(document).ready(function () {
     MQTTconnect();
@@ -701,7 +729,6 @@ $(document).ready(function () {
         }
 
     });
-
     $("#devReboot").click(function () {
         var xds_inst_id = localStorage.getItem('xds_inst_id');
 
