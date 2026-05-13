@@ -632,6 +632,16 @@ function scaned(r){
 
 // 打开二维码扫描界面 
 function openBarcode(){
+    if (window.AndroidScanner && typeof window.AndroidScanner.showScanOptions === 'function') {
+        window.AndroidScanner.showScanOptions();
+        return;
+    }
+
+    if (!window.plus) {
+        alert('当前环境不支持扫码录入');
+        return;
+    }
+
 	createWithoutTitle('barcode_scan.html', {
 		titleNView:{
 			type: 'float',

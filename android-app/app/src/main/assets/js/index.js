@@ -616,21 +616,31 @@ function scaned(r){
 
 // 打开二维码扫描界面 
 function openBarcode(){
-	createWithoutTitle('barcode_scan.html', {
-		titleNView:{
-			type: 'float',
-			backgroundColor: 'rgba(215,75,40,0.3)',
-			titleText: '扫一扫',
-			titleColor: '#FFFFFF',
-			autoBackButton: true,
-			buttons: [{
-				fontSrc: 'helloh5.ttf',
-				text: '相册',
-				fontSize: '18px',
-				onclick: 'javascript:scanPicture()'
-			}]
-		}
-	});
+    if (window.AndroidScanner && typeof window.AndroidScanner.showScanOptions === 'function') {
+        window.AndroidScanner.showScanOptions();
+        return;
+    }
+
+    if (!window.plus) {
+        alert('当前环境不支持扫码录入');
+        return;
+    }
+
+    createWithoutTitle('barcode_scan.html', {
+        titleNView:{
+            type: 'float',
+            backgroundColor: 'rgba(215,75,40,0.3)',
+            titleText: '扫一扫',
+            titleColor: '#FFFFFF',
+            autoBackButton: true,
+            buttons: [{
+                fontSrc: 'helloh5.ttf',
+                text: '相册',
+                fontSize: '18px',
+                onclick: 'javascript:scanPicture()'
+            }]
+        }
+    });
 }
 
 //QR JS END
