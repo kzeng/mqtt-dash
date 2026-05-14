@@ -42,6 +42,9 @@ class PahoNativeMqttRepository(
             client.setCallback(object : MqttCallbackExtended {
                 override fun connectComplete(reconnect: Boolean, serverURI: String?) {
                     _connectionState.value = MqttConnectionState.Connected
+                    if (reconnect) {
+                        resubscribeAfterReconnect(client)
+                    }
                 }
 
                 override fun connectionLost(cause: Throwable?) {
@@ -113,6 +116,19 @@ class PahoNativeMqttRepository(
             connectionTimeout = 5
             keepAliveInterval = 30
         }
+    }
+
+    private fun resubscribeAfterReconnect(client: MqttAsyncClient) {
+        client.subscribe(brokerConfig.subscriptionTopic, 1, null, object : IMqttActionListener {
+            override fun onSuccess(asyncActionToken: IMqttToken?) {
+            }
+
+            override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {
+                _connectionState.value = MqttConnectionState.Failed(
+                    exception?.message ?: "MQTT resubscribe failed"
+                )
+            }
+        })
     }
 }
 

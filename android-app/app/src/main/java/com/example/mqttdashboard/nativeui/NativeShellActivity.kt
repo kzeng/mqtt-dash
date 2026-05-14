@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -58,7 +59,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -128,7 +131,7 @@ class NativeShellActivity : ComponentActivity() {
                     }
                 )
             }
-                        Card(modifier = Modifier.fillMaxWidth()) {
+        }
     }
 
     private fun persistDeviceSelection(selectedDevice: DeviceProfile, devices: List<DeviceProfile>) {
@@ -213,6 +216,14 @@ private fun NativeShellScreen(
         val toastMessage = message ?: return@LaunchedEffect
         Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
         message = null
+    }
+
+    LaunchedEffect(mqttUiState.commandStatusEventId) {
+        val statusMessage = mqttUiState.commandStatus
+        if (statusMessage.isBlank() || statusMessage == "参数已加载") {
+            return@LaunchedEffect
+        }
+        Toast.makeText(context, statusMessage, Toast.LENGTH_SHORT).show()
     }
 
     LaunchedEffect(mqttUiState.controlSettings) {
@@ -322,12 +333,6 @@ private fun NativeShellScreen(
                     }
                 }
             },
-            onReconnectClick = {
-                mqttViewModel.connect()
-            },
-            onDisconnectClick = {
-                mqttViewModel.disconnect()
-            },
             onToggleRunStopClick = {
                 mqttViewModel.toggleRunStop()
             },
@@ -377,8 +382,6 @@ private fun NativeShellContent(
     onUseDevice: (DeviceProfile) -> Unit,
     onEditDevice: (DeviceProfile) -> Unit,
     onDeleteDevice: (DeviceProfile) -> Unit,
-    onReconnectClick: () -> Unit,
-    onDisconnectClick: () -> Unit,
     onToggleRunStopClick: () -> Unit,
     onRebootDeviceClick: () -> Unit,
     onRebootEspClick: () -> Unit,
@@ -400,16 +403,10 @@ private fun NativeShellContent(
 
         NativeHomeTab.Control -> ControlTabContent(
             innerPadding = innerPadding,
-            mqttUiState = mqttUiState,
             controlSettings = controlSettings,
             onControlSettingsChange = onControlSettingsChange,
             onRequestControlSettingsClick = onRequestControlSettingsClick,
-            onSaveControlSettingsClick = onSaveControlSettingsClick,
-            onReconnectClick = onReconnectClick,
-            onDisconnectClick = onDisconnectClick,
-            onToggleRunStopClick = onToggleRunStopClick,
-            onRebootDeviceClick = onRebootDeviceClick,
-            onRebootEspClick = onRebootEspClick
+            onSaveControlSettingsClick = onSaveControlSettingsClick
         )
 
         NativeHomeTab.Device -> DeviceTabContent(
@@ -433,6 +430,9 @@ private fun NativeShellContent(
             customCommand = customCommand,
             onCustomCommandChange = onCustomCommandChange,
             onSendCustomCommandClick = onSendCustomCommandClick,
+            onToggleRunStopClick = onToggleRunStopClick,
+            onRebootDeviceClick = onRebootDeviceClick,
+            onRebootEspClick = onRebootEspClick,
             onOpenWebDashboard = onOpenWebDashboard
         )
 
@@ -467,10 +467,17 @@ private fun DashboardTabContent(
                             temperatureHistory = temperatureHistory,
                             humidityHistory = humidityHistory
                         )
-                        ChannelSection(telemetry = mqttUiState.telemetry)
-                        TelemetrySection(telemetry = mqttUiState.telemetry)
                     } else {
                         WaitingTelemetryState()
+                    }
+                }
+            }
+        }
+        if (mqttUiState.telemetry.hasSnapshot) {
+            item {
+                Card {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        ChannelSection(telemetry = mqttUiState.telemetry)
                     }
                 }
             }
@@ -498,16 +505,10 @@ private fun WaitingTelemetryState() {
 @Composable
 private fun ControlTabContent(
     innerPadding: PaddingValues,
-    mqttUiState: NativeShellMqttUiState,
     controlSettings: DeviceControlSettings,
     onControlSettingsChange: (DeviceControlSettings) -> Unit,
     onRequestControlSettingsClick: () -> Unit,
-    onSaveControlSettingsClick: () -> Unit,
-    onReconnectClick: () -> Unit,
-    onDisconnectClick: () -> Unit,
-    onToggleRunStopClick: () -> Unit,
-    onRebootDeviceClick: () -> Unit,
-    onRebootEspClick: () -> Unit
+    onSaveControlSettingsClick: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -517,37 +518,8 @@ private fun ControlTabContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Card {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        Button(onClick = onReconnectClick, modifier = Modifier.weight(1f)) {
-                            Text("连接")
-                        }
-                        OutlinedButton(onClick = onDisconnectClick, modifier = Modifier.weight(1f)) {
-                            Text("断开")
-                        }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        Button(onClick = onToggleRunStopClick, modifier = Modifier.weight(1f)) {
-                            Text("运行/停止")
-                        }
-                        OutlinedButton(onClick = onRebootDeviceClick, modifier = Modifier.weight(1f)) {
-                            Text("重启仪表")
-                        }
-                    }
-                    OutlinedButton(onClick = onRebootEspClick, modifier = Modifier.fillMaxWidth()) {
-                        Text("重启ESP8266")
-                    }
-                    if (mqttUiState.commandStatus.isNotBlank()) {
-                        Text(text = "命令状态: ${mqttUiState.commandStatus}")
-                    }
-                }
-            }
-        }
-        item {
             ControlSettingsCard(
                 settings = controlSettings,
-                commandStatus = mqttUiState.commandStatus,
                 onSettingsChange = onControlSettingsChange,
                 onRequestClick = onRequestControlSettingsClick,
                 onSaveClick = onSaveControlSettingsClick
@@ -641,6 +613,9 @@ private fun DebugTabContent(
     customCommand: String,
     onCustomCommandChange: (String) -> Unit,
     onSendCustomCommandClick: () -> Unit,
+    onToggleRunStopClick: () -> Unit,
+    onRebootDeviceClick: () -> Unit,
+    onRebootEspClick: () -> Unit,
     onOpenWebDashboard: () -> Unit
 ) {
     LazyColumn(
@@ -651,11 +626,17 @@ private fun DebugTabContent(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
+            DeviceActionCard(
+                onToggleRunStopClick = onToggleRunStopClick,
+                onRebootDeviceClick = onRebootDeviceClick,
+                onRebootEspClick = onRebootEspClick
+            )
+        }
+        item {
             DebugCommandCard(
                 customCommand = customCommand,
                 responseTopic = mqttUiState.responseTopic,
                 responsePayload = mqttUiState.responsePayload,
-                commandStatus = mqttUiState.commandStatus,
                 onCustomCommandChange = onCustomCommandChange,
                 onSendClick = onSendCustomCommandClick
             )
@@ -687,8 +668,29 @@ private fun DashboardHeroCard(mqttUiState: NativeShellMqttUiState) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(text = "温湿度控制记录仪客户端", style = MaterialTheme.typography.titleLarge)
             Text(text = "当前设备: ${mqttUiState.selectedDevice.id.ifBlank { "未选择" }}")
-            Text(text = "连接状态: ${mqttConnectionLabel(mqttUiState.connectionState)}")
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = "连接状态: ${mqttConnectionLabel(mqttUiState.connectionState)}")
+                WifiStatusRow(wifiQuality = mqttUiState.telemetry.wifiQuality)
+            }
         }
+    }
+}
+
+@Composable
+private fun WifiStatusRow(wifiQuality: Int?) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Wifi,
+            contentDescription = "Wi-Fi",
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Text(text = wifiQuality?.let { "$it%" } ?: "-")
     }
 }
 
@@ -725,13 +727,6 @@ private fun AboutCard() {
                 textAlign = TextAlign.Center
             )
         }
-    }
-}
-
-@Composable
-private fun TelemetrySection(telemetry: DeviceTelemetry) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(text = "空调模块: ${telemetry.airConditionerState}")
     }
 }
 
@@ -790,11 +785,6 @@ private fun DashboardDetailGrid(telemetry: DeviceTelemetry) {
                 value = telemetry.controlStatus,
                 modifier = Modifier.weight(1f)
             )
-            SummaryTile(
-                label = "Wi-Fi",
-                value = telemetry.wifiQuality?.let { "$it%" } ?: "-",
-                modifier = Modifier.weight(1f)
-            )
         }
     }
 }
@@ -841,31 +831,79 @@ private fun TrendCard(label: String, values: List<Float>, modifier: Modifier = M
 @Composable
 private fun SparklineChart(values: List<Float>) {
     val lineColor = MaterialTheme.colorScheme.primary
-    Canvas(modifier = Modifier.fillMaxWidth().height(72.dp)) {
-        if (values.size < 2) {
+    val fillColor = lineColor.copy(alpha = 0.14f)
+    val guideColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)
+    val pointInnerColor = MaterialTheme.colorScheme.surface
+
+    Canvas(modifier = Modifier.fillMaxWidth().height(88.dp)) {
+        if (values.isEmpty()) {
             return@Canvas
         }
 
         val minValue = values.minOrNull() ?: return@Canvas
         val maxValue = values.maxOrNull() ?: return@Canvas
         val range = (maxValue - minValue).takeIf { it > 0f } ?: 1f
-        val stepX = size.width / (values.size - 1)
+        val leftPadding = 6f
+        val rightPadding = 6f
+        val topPadding = 10f
+        val bottomPadding = 10f
+        val chartHeight = size.height - topPadding - bottomPadding
+        val chartWidth = size.width - leftPadding - rightPadding
+        val firstX = leftPadding
+        val lastX = size.width - rightPadding
+        val stepX = if (values.size > 1) chartWidth / (values.size - 1) else 0f
+        val baselineY = size.height - bottomPadding
 
-        values.zipWithNext().forEachIndexed { index, (startValue, endValue) ->
-            val start = Offset(
-                x = index * stepX,
-                y = size.height - (((startValue - minValue) / range) * size.height)
+        fun pointAt(index: Int, value: Float): Offset {
+            val normalizedY = (value - minValue) / range
+            return Offset(
+                x = firstX + (index * stepX),
+                y = baselineY - (normalizedY * chartHeight)
             )
-            val end = Offset(
-                x = (index + 1) * stepX,
-                y = size.height - (((endValue - minValue) / range) * size.height)
-            )
+        }
+
+        listOf(0.25f, 0.5f, 0.75f).forEach { fraction ->
+            val guideY = topPadding + (chartHeight * fraction)
             drawLine(
-                color = lineColor,
-                start = start,
-                end = end,
-                strokeWidth = 6f
+                color = guideColor,
+                start = Offset(firstX, guideY),
+                end = Offset(lastX, guideY),
+                strokeWidth = 1f
             )
+        }
+
+        val points = values.mapIndexed { index, value -> pointAt(index, value) }
+        if (points.size == 1) {
+            drawCircle(color = lineColor, radius = 6f, center = points.first())
+            drawCircle(color = pointInnerColor, radius = 2.5f, center = points.first())
+            return@Canvas
+        }
+
+        val linePath = Path().apply {
+            moveTo(points.first().x, points.first().y)
+            points.drop(1).forEach { point ->
+                lineTo(point.x, point.y)
+            }
+        }
+
+        val areaPath = Path().apply {
+            moveTo(points.first().x, baselineY)
+            lineTo(points.first().x, points.first().y)
+            points.drop(1).forEach { point ->
+                lineTo(point.x, point.y)
+            }
+            lineTo(points.last().x, baselineY)
+            close()
+        }
+
+        drawPath(path = areaPath, color = fillColor)
+        drawPath(path = linePath, color = lineColor, style = Stroke(width = 4f))
+
+        points.forEachIndexed { index, point ->
+            val outerRadius = if (index == points.lastIndex) 6f else 4.5f
+            val innerRadius = if (index == points.lastIndex) 2.8f else 2.2f
+            drawCircle(color = lineColor, radius = outerRadius, center = point)
+            drawCircle(color = pointInnerColor, radius = innerRadius, center = point)
         }
     }
 }
@@ -874,29 +912,35 @@ private fun SparklineChart(values: List<Float>) {
 private fun ChannelSection(telemetry: DeviceTelemetry) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(text = "通道状态", style = MaterialTheme.typography.titleMedium)
-        telemetry.channels.chunked(2).forEach { rowChannels ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                rowChannels.forEach { channel ->
-                    ChannelCard(channel = channel, modifier = Modifier.weight(1f))
-                }
-                if (rowChannels.size == 1) {
-                    Column(modifier = Modifier.weight(1f)) {}
-                }
-            }
-        }
+        ChannelTableRow(
+            values = listOf("") + telemetry.channels.map { channel -> "${channel.label} ${if (channel.active) "●" else "○"}" }
+        )
+        ChannelTableRow(
+            values = listOf("温度") + telemetry.channels.map { channel -> channel.temperature }
+        )
+        ChannelTableRow(
+            values = listOf("湿度") + telemetry.channels.map { channel -> channel.humidity }
+        )
     }
 }
 
 @Composable
-private fun ChannelCard(channel: ChannelSnapshot, modifier: Modifier = Modifier) {
-    Card(modifier = modifier) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+private fun ChannelTableRow(
+    values: List<String>,
+    modifier: Modifier = Modifier
+) {
+    Row(modifier = modifier.fillMaxWidth()) {
+        values.forEach { value ->
             Text(
-                text = "${channel.label} ${if (channel.active) "●" else "○"}",
-                style = MaterialTheme.typography.titleSmall
+                text = value,
+                modifier = Modifier.weight(1f),
+                style = if (value.startsWith("CH")) {
+                    MaterialTheme.typography.titleSmall
+                } else {
+                    MaterialTheme.typography.bodyMedium
+                },
+                textAlign = TextAlign.Left
             )
-            Text(text = "温度 ${channel.temperature}", style = MaterialTheme.typography.bodyMedium)
-            Text(text = "湿度 ${channel.humidity}", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -949,7 +993,6 @@ private fun formatTargetWithDeviation(target: String, deviation: String): String
 @Composable
 private fun ControlSettingsCard(
     settings: DeviceControlSettings,
-    commandStatus: String,
     onSettingsChange: (DeviceControlSettings) -> Unit,
     onRequestClick: () -> Unit,
     onSaveClick: () -> Unit
@@ -1005,9 +1048,6 @@ private fun ControlSettingsCard(
                     Text("保存参数")
                 }
             }
-            if (commandStatus.isNotBlank()) {
-                Text(text = "参数状态: $commandStatus")
-            }
         }
     }
 }
@@ -1044,7 +1084,6 @@ private fun DebugCommandCard(
     customCommand: String,
     responseTopic: String,
     responsePayload: String,
-    commandStatus: String,
     onCustomCommandChange: (String) -> Unit,
     onSendClick: () -> Unit
 ) {
@@ -1061,9 +1100,6 @@ private fun DebugCommandCard(
             )
             Button(onClick = onSendClick, modifier = Modifier.fillMaxWidth()) {
                 Text("发送指令")
-            }
-            if (commandStatus.isNotBlank()) {
-                Text(text = "调试状态: $commandStatus")
             }
             Text(text = "响应主题: ${responseTopic.ifBlank { "-" }}")
             OutlinedTextField(
@@ -1121,8 +1157,6 @@ private fun NativeShellPreview() {
             onUseDevice = {},
             onEditDevice = {},
             onDeleteDevice = {},
-            onReconnectClick = {},
-            onDisconnectClick = {},
             onToggleRunStopClick = {},
             onRebootDeviceClick = {},
             onRebootEspClick = {},
@@ -1202,5 +1236,28 @@ private fun loadBitmapFromUri(context: android.content.Context, uri: Uri): Bitma
         }
     } else {
         MediaStore.Images.Media.getBitmap(context.contentResolver, uri)
+    }
+}
+
+@Composable
+private fun DeviceActionCard(
+    onToggleRunStopClick: () -> Unit,
+    onRebootDeviceClick: () -> Unit,
+    onRebootEspClick: () -> Unit
+) {
+    Card {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                Button(onClick = onToggleRunStopClick, modifier = Modifier.weight(1f)) {
+                    Text("运行/停止")
+                }
+                OutlinedButton(onClick = onRebootDeviceClick, modifier = Modifier.weight(1f)) {
+                    Text("重启仪表")
+                }
+            }
+            OutlinedButton(onClick = onRebootEspClick, modifier = Modifier.fillMaxWidth()) {
+                Text("重启ESP8266")
+            }
+        }
     }
 }

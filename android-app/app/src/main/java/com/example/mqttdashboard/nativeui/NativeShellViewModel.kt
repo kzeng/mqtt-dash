@@ -28,6 +28,7 @@ data class NativeShellMqttUiState(
     val humidityHistory: List<Float> = emptyList(),
     val controlSettings: DeviceControlSettings = DeviceControlSettings(),
     val commandStatus: String = "",
+    val commandStatusEventId: Long = 0L,
     val responseTopic: String = "",
     val responsePayload: String = ""
 )
@@ -85,7 +86,7 @@ class NativeShellViewModel(
         }
 
         if (payload == null) {
-            _mqttUiState.value = _mqttUiState.value.copy(commandStatus = "请先填写完整且合法的参数")
+            updateCommandStatus("请先填写完整且合法的参数")
             return
         }
 
@@ -96,7 +97,7 @@ class NativeShellViewModel(
     fun sendCustomCommand(rawCommand: String) {
         val command = rawCommand.replace("\\s+".toRegex(), "").uppercase()
         if (command.length < 4 || command.length % 2 != 0 || !command.startsWith("55") || !command.endsWith("AA")) {
-            _mqttUiState.value = _mqttUiState.value.copy(commandStatus = "命令格式错误！")
+            updateCommandStatus("命令格式错误！")
             return
         }
 
@@ -201,7 +202,7 @@ class NativeShellViewModel(
         viewModelScope.launch {
             val selectedDeviceId = _mqttUiState.value.selectedDevice.id
             if (selectedDeviceId.isBlank()) {
-                _mqttUiState.value = _mqttUiState.value.copy(commandStatus = "请先选择设备")
+                updateCommandStatus("请先选择设备")
                 return@launch
             }
 
@@ -209,15 +210,25 @@ class NativeShellViewModel(
             val result = runCatching {
                 nativeMqttRepository.publish(topic = topic, payload = payload)
             }
-            _mqttUiState.value = _mqttUiState.value.copy(
+            val currentState = _mqttUiState.value
+            _mqttUiState.value = currentState.copy(
                 commandStatus = result.fold(
                     onSuccess = { successMessage },
                     onFailure = { error -> error.message ?: "指令发送失败" }
                 ),
-                responseTopic = if (clearResponse) "" else _mqttUiState.value.responseTopic,
-                responsePayload = if (clearResponse) "" else _mqttUiState.value.responsePayload
+                commandStatusEventId = currentState.commandStatusEventId + 1,
+                responseTopic = if (clearResponse) "" else currentState.responseTopic,
+                responsePayload = if (clearResponse) "" else currentState.responsePayload
             )
         }
+    }
+
+    private fun updateCommandStatus(status: String) {
+        val currentState = _mqttUiState.value
+        _mqttUiState.value = currentState.copy(
+            commandStatus = status,
+            commandStatusEventId = currentState.commandStatusEventId + 1
+        )
     }
 
     private fun appendHistorySample(history: List<Float>, value: Float?): List<Float> {
