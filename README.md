@@ -58,6 +58,8 @@ Debug APK 位于：
 android-app/app/build/outputs/apk/debug/app-debug.apk
 ```
 
+当前已验证 `clean assembleDebug` 会将 APK 稳定输出到以上目录。
+
 ## 主要功能
 
 - MQTT WebSocket 连接（ws://118.31.36.131:9001）
@@ -73,3 +75,5 @@ android-app/app/build/outputs/apk/debug/app-debug.apk
 - 使用 `network_security_config.xml` 允许明文 `ws://` 连接
 - UI 更新频率已优化为每秒一次，减少主线程占用
 - WebView 已禁用 alert 弹窗 URL 前缀显示
+- 不要将完整的 `android-app/` 工程目录或任意 `build/` 产物复制到 `android-app/app/src/main/assets/` 下，否则 Gradle 会把这些内容一并当作资源打包，可能导致资源目录递归膨胀，并让 APK 输出定位异常
+- 如果再次发现 APK 没有出现在 `android-app/app/build/outputs/apk/debug/app-debug.apk`，优先检查 `android-app/app/src/main/assets/` 下是否误混入了工程副本或构建产物

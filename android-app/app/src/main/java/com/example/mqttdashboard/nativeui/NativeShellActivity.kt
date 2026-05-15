@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -62,7 +63,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -667,7 +670,13 @@ private fun AboutTabContent(innerPadding: PaddingValues) {
 private fun DashboardHeroCard(mqttUiState: NativeShellMqttUiState) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(text = "温湿度控制记录仪客户端", style = MaterialTheme.typography.titleLarge)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AppLogo(modifier = Modifier.size(34.dp))
+                Text(text = "温湿度控制记录仪客户端", style = MaterialTheme.typography.titleLarge)
+            }
             Text(text = "当前设备: ${mqttUiState.selectedDevice.id.ifBlank { "未选择" }}")
             Row(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -706,11 +715,7 @@ private fun AboutCard() {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Image(
-                    painter = painterResource(id = R.mipmap.ic_launcher),
-                    contentDescription = "应用 Logo",
-                    modifier = Modifier.size(72.dp)
-                )
+                AppLogo(modifier = Modifier.size(72.dp))
             }
             Text(
                 text = "温湿度控制记录仪客户端",
@@ -812,6 +817,16 @@ private fun SummaryTile(
             )
         }
     }
+}
+
+@Composable
+private fun AppLogo(modifier: Modifier = Modifier) {
+    Image(
+        painter = painterResource(id = R.mipmap.ic_launcher),
+        contentDescription = "应用 Logo",
+        contentScale = ContentScale.Crop,
+        modifier = modifier.clip(RoundedCornerShape(10.dp))
+    )
 }
 
 @Composable
