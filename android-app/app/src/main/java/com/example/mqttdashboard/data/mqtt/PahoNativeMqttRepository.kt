@@ -41,8 +41,8 @@ class PahoNativeMqttRepository(
         val client = buildClient().also { client ->
             client.setCallback(object : MqttCallbackExtended {
                 override fun connectComplete(reconnect: Boolean, serverURI: String?) {
-                    _connectionState.value = MqttConnectionState.Connected
                     if (reconnect) {
+                        _connectionState.value = MqttConnectionState.Connecting
                         resubscribeAfterReconnect(client)
                     }
                 }
@@ -121,6 +121,7 @@ class PahoNativeMqttRepository(
     private fun resubscribeAfterReconnect(client: MqttAsyncClient) {
         client.subscribe(brokerConfig.subscriptionTopic, 1, null, object : IMqttActionListener {
             override fun onSuccess(asyncActionToken: IMqttToken?) {
+                _connectionState.value = MqttConnectionState.Connected
             }
 
             override fun onFailure(asyncActionToken: IMqttToken?, exception: Throwable?) {

@@ -13,6 +13,8 @@ import com.example.mqttdashboard.data.mqtt.DeviceTopicRouter
 import com.example.mqttdashboard.data.mqtt.MqttConnectionState
 import com.example.mqttdashboard.data.mqtt.MqttIncomingMessage
 import com.example.mqttdashboard.data.mqtt.NativeMqttRepository
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,6 +41,8 @@ class NativeShellViewModel(
 ) : ViewModel() {
     private val _mqttUiState = MutableStateFlow(NativeShellMqttUiState())
     val mqttUiState: StateFlow<NativeShellMqttUiState> = _mqttUiState.asStateFlow()
+    private var pendingControlSettingsRequestId: Long = 0L
+    private var controlSettingsRetryJob: Job? = null
 
     init {
         observeSelectedDevice()
@@ -72,9 +76,19 @@ class NativeShellViewModel(
     }
 
     fun requestControlSettings() {
+        val requestId = pendingControlSettingsRequestId + 1
+        pendingControlSettingsRequestId = requestId
+        controlSettingsRetryJob?.cancel()
         sendControlCommand(
             payload = DeviceControlSettingsCodec.buildReadCommand(),
-            successMessage = "已发送 读取参数 指令"
+            successMessage = "已发送 读取参数 指令",
+            onSuccess = { topic, payload ->
+                scheduleControlSettingsRetry(
+                    requestId = requestId,
+                    topic = topic,
+                    payload = payload
+                )
+            }
         )
     }
 
@@ -111,6 +125,8 @@ class NativeShellViewModel(
     private fun observeSelectedDevice() {
         viewModelScope.launch {
             devicePreferencesRepository.selectedDevice.collectLatest { device ->
+                controlSettingsRetryJob?.cancel()
+                pendingControlSettingsRequestId = 0L
                 _mqttUiState.value = _mqttUiState.value.copy(
                     selectedDevice = device,
                     telemetry = DeviceTelemetry(),
@@ -144,6 +160,16 @@ class NativeShellViewModel(
 
                 val topicRouter = DeviceTopicRouter(selectedDeviceId)
                 if (topicRouter.isForSelectedDevice(message.topic)) {
+                    val parsedControlSettings = if (message.topic == topicRouter.commonCommandTopic) {
+                        DeviceControlSettingsCodec.parseReadResponse(message.payload)
+                    } else {
+                        null
+                    }
+                    if (parsedControlSettings != null) {
+                        pendingControlSettingsRequestId = 0L
+                        controlSettingsRetryJob?.cancel()
+                    }
+
                     val previousTelemetry = _mqttUiState.value.telemetry
                     val nextTelemetry = when (message.topic) {
                         topicRouter.infoTopic -> DeviceTelemetryParser.parseInfoPayload(message.payload, previousTelemetry)
@@ -171,16 +197,9 @@ class NativeShellViewModel(
                         telemetry = nextTelemetry,
                         temperatureHistory = nextTemperatureHistory,
                         humidityHistory = nextHumidityHistory,
-                        controlSettings = when {
-                            message.topic == topicRouter.commonCommandTopic -> {
-                                DeviceControlSettingsCodec.parseReadResponse(message.payload)
-                                    ?: _mqttUiState.value.controlSettings
-                            }
-                            else -> _mqttUiState.value.controlSettings
-                        },
+                        controlSettings = parsedControlSettings ?: _mqttUiState.value.controlSettings,
                         commandStatus = when {
-                            message.topic == topicRouter.commonCommandTopic &&
-                                DeviceControlSettingsCodec.parseReadResponse(message.payload) != null -> "参数已加载"
+                            parsedControlSettings != null -> "参数已加载"
                             else -> _mqttUiState.value.commandStatus
                         },
                         responseTopic = message.topic,
@@ -192,17 +211,29 @@ class NativeShellViewModel(
     }
 
     override fun onCleared() {
+        controlSettingsRetryJob?.cancel()
         viewModelScope.launch {
             runCatching { nativeMqttRepository.disconnect() }
         }
         super.onCleared()
     }
 
-    private fun sendControlCommand(payload: String, successMessage: String, clearResponse: Boolean = false) {
+    private fun sendControlCommand(
+        payload: String,
+        successMessage: String,
+        clearResponse: Boolean = false,
+        onSuccess: ((topic: String, payload: String) -> Unit)? = null
+    ) {
         viewModelScope.launch {
-            val selectedDeviceId = _mqttUiState.value.selectedDevice.id
+            val currentState = _mqttUiState.value
+            val selectedDeviceId = currentState.selectedDevice.id
             if (selectedDeviceId.isBlank()) {
                 updateCommandStatus("请先选择设备")
+                return@launch
+            }
+
+            if (currentState.connectionState != MqttConnectionState.Connected) {
+                updateCommandStatus("MQTT 连接或订阅尚未就绪，请稍后重试")
                 return@launch
             }
 
@@ -210,7 +241,6 @@ class NativeShellViewModel(
             val result = runCatching {
                 nativeMqttRepository.publish(topic = topic, payload = payload)
             }
-            val currentState = _mqttUiState.value
             _mqttUiState.value = currentState.copy(
                 commandStatus = result.fold(
                     onSuccess = { successMessage },
@@ -220,6 +250,24 @@ class NativeShellViewModel(
                 responseTopic = if (clearResponse) "" else currentState.responseTopic,
                 responsePayload = if (clearResponse) "" else currentState.responsePayload
             )
+            if (result.isSuccess) {
+                onSuccess?.invoke(topic, payload)
+            }
+        }
+    }
+
+    private fun scheduleControlSettingsRetry(requestId: Long, topic: String, payload: String) {
+        controlSettingsRetryJob = viewModelScope.launch {
+            delay(1500)
+            if (pendingControlSettingsRequestId != requestId) {
+                return@launch
+            }
+            if (_mqttUiState.value.connectionState != MqttConnectionState.Connected) {
+                return@launch
+            }
+            runCatching {
+                nativeMqttRepository.publish(topic = topic, payload = payload)
+            }
         }
     }
 

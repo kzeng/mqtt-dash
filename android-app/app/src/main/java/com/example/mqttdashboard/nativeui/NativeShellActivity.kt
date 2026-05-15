@@ -74,7 +74,6 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
-import com.example.mqttdashboard.MainActivity
 import com.example.mqttdashboard.R
 import com.example.mqttdashboard.data.device.DevicePreferencesRepository
 import com.example.mqttdashboard.data.device.DeviceProfile
@@ -127,9 +126,6 @@ class NativeShellActivity : ComponentActivity() {
                     onComplete = { selectedDevice, devices ->
                         persistDeviceSelection(selectedDevice, devices)
                     },
-                    onOpenWebDashboard = {
-                        openWebDashboard()
-                    },
                     onCancel = {
                         finish()
                     }
@@ -155,10 +151,6 @@ class NativeShellActivity : ComponentActivity() {
         }
     }
 
-    private fun openWebDashboard() {
-        startActivity(Intent(this, MainActivity::class.java))
-    }
-
     companion object {
         const val EXTRA_SELECTED_DEVICE_ID = "selected_device_id"
         const val EXTRA_SELECTED_DEVICE_NAME = "selected_device_name"
@@ -173,7 +165,6 @@ private fun NativeShellScreen(
     repository: DevicePreferencesRepository,
     mqttViewModel: NativeShellViewModel,
     onComplete: (DeviceProfile, List<DeviceProfile>) -> Unit,
-    onOpenWebDashboard: () -> Unit,
     onCancel: () -> Unit
 ) {
     val context = LocalContext.current
@@ -279,7 +270,6 @@ private fun NativeShellScreen(
             mqttUiState = mqttUiState,
             temperatureHistory = mqttUiState.temperatureHistory,
             humidityHistory = mqttUiState.humidityHistory,
-            onOpenWebDashboard = onOpenWebDashboard,
             onDeviceIdChange = { deviceId = it },
             onDeviceNameChange = { deviceName = it },
             onScanClick = {
@@ -377,7 +367,6 @@ private fun NativeShellContent(
     mqttUiState: NativeShellMqttUiState,
     temperatureHistory: List<Float>,
     humidityHistory: List<Float>,
-    onOpenWebDashboard: () -> Unit,
     onDeviceIdChange: (String) -> Unit,
     onDeviceNameChange: (String) -> Unit,
     onScanClick: () -> Unit,
@@ -436,8 +425,7 @@ private fun NativeShellContent(
             onSendCustomCommandClick = onSendCustomCommandClick,
             onToggleRunStopClick = onToggleRunStopClick,
             onRebootDeviceClick = onRebootDeviceClick,
-            onRebootEspClick = onRebootEspClick,
-            onOpenWebDashboard = onOpenWebDashboard
+            onRebootEspClick = onRebootEspClick
         )
 
         NativeHomeTab.About -> AboutTabContent(innerPadding = innerPadding)
@@ -619,8 +607,7 @@ private fun DebugTabContent(
     onSendCustomCommandClick: () -> Unit,
     onToggleRunStopClick: () -> Unit,
     onRebootDeviceClick: () -> Unit,
-    onRebootEspClick: () -> Unit,
-    onOpenWebDashboard: () -> Unit
+    onRebootEspClick: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -644,9 +631,6 @@ private fun DebugTabContent(
                 onCustomCommandChange = onCustomCommandChange,
                 onSendClick = onSendCustomCommandClick
             )
-        }
-        item {
-            LegacyFallbackCard(onOpenWebDashboard = onOpenWebDashboard)
         }
     }
 }
@@ -976,22 +960,6 @@ private fun ChannelTableRow(
 }
 
 @Composable
-private fun LegacyFallbackCard(onOpenWebDashboard: () -> Unit) {
-    Card {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(text = "经典版本工具", style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = "仅在原生页尚未覆盖的少量功能需要时使用，默认操作请留在当前原生界面。",
-                style = MaterialTheme.typography.bodyMedium
-            )
-            OutlinedButton(onClick = onOpenWebDashboard, modifier = Modifier.fillMaxWidth()) {
-                Text("打开经典版本")
-            }
-        }
-    }
-}
-
-@Composable
 private fun MetricRow(
     leftLabel: String,
     leftValue: String,
@@ -1178,7 +1146,6 @@ private fun NativeShellPreview() {
             ),
             temperatureHistory = listOf(21.3f, 21.8f, 22.1f, 22.7f, 23.0f, 23.4f),
             humidityHistory = listOf(70.0f, 68.5f, 67.3f, 66.2f, 65.8f, 65.0f),
-            onOpenWebDashboard = {},
             onDeviceIdChange = {},
             onDeviceNameChange = {},
             onScanClick = {},
