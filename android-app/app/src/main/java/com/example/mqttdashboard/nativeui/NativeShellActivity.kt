@@ -59,6 +59,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -743,6 +744,11 @@ private fun DashboardSummaryGrid(telemetry: DeviceTelemetry) {
         SummaryTile(
             label = "仪表",
             value = telemetry.running?.let { if (it) "运行" else "停止" } ?: "-",
+            valueColor = when (telemetry.running) {
+                true -> Color(0xFF2E7D32)
+                false -> MaterialTheme.colorScheme.error
+                null -> MaterialTheme.colorScheme.onSurface
+            },
             modifier = Modifier.weight(1f)
         )
     }
@@ -790,11 +796,20 @@ private fun DashboardDetailGrid(telemetry: DeviceTelemetry) {
 }
 
 @Composable
-private fun SummaryTile(label: String, value: String, modifier: Modifier = Modifier) {
+private fun SummaryTile(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface
+) {
     Card(modifier = modifier) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(text = label, style = MaterialTheme.typography.labelMedium)
-            Text(text = value, style = MaterialTheme.typography.headlineSmall)
+            Text(
+                text = value,
+                style = MaterialTheme.typography.headlineSmall,
+                color = valueColor
+            )
         }
     }
 }
